@@ -12,17 +12,36 @@ from urllib.parse import unquote
 class ServerException(Exception):
     pass
 
+class base_case():
+
+    def handle_file(self, handler):
+        try:
+            with open(handler.full_path, 'r', encoding='utf-8') as reader:
+                content = reader.read()
+            file_page = handler.File_Page.format(file_text=content)
+            handler.send_content(file_page)
+        except IOError as msg:
+            msg = "'{0}' cannot be read:{1}".format(self.path, msg)
+            handler.handle_error(msg)
+    def index_path(self, handler):
+        return os.path.join(handler.full_path, 'index.html')
+    def test(self, handler):
+        assert False, 'Not implemented.'
+    def act(self, handler):
+        assert False, 'Not implemented.'
+
+
 class case_no_file():
     def test(self, handler):
         return not os.path.exists(handler.full_path)
     def act(self, handler):
         raise ServerException("'{0}' not found".format(handler.path))
 
-class case_existing_file():
+class case_existing_file(base_case):
     def test(self, handler):
         return os.path.isfile(handler.full_path)
     def act(self, handler):
-        handler.handle_file(handler.full_path)
+        self.handle_file(handler)
 
 class case_always_fail():
     def test(self, handler):
@@ -143,7 +162,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     def handle_file(self, full_path):
         try:
-            with open(full_path, 'r', encoding='utf-8') as reader:
+            with open(full_path, 'r', encoding='ubtf-8') as reader:
                 content = reader.read()
                 print(content)
             file_page = self.File_Page.format(file_text=content)

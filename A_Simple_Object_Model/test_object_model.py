@@ -31,3 +31,18 @@ def test_read_write_field():
     obj.write_attr('a', 2)
     assert obj.read_attr('a') == 2
     assert obj.read_attr('b') == 5
+
+
+def test_read_write_field_class():
+
+    class A():
+        pass
+    A.a = 1
+    assert A.a == 1
+    A.a = 6
+    assert A.a == 6
+
+    A = Class(name='A', base_class=OBJECT, fields={'a': 1}, metaclass=TYPE)
+    assert A.read_attr('a') == 1
+    A.write_attr('a', 5)
+    assert A.read_attr('a') == 5

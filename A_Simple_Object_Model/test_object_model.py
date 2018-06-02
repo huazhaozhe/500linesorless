@@ -89,3 +89,10 @@ def test_callmethod_simple():
     obj.write_attr('x', 1)
     assert obj.read_attr('x') == 1
     assert obj.cls.read_attr('f')(obj) == 2
+    assert obj.callmethod('f') == 2
+
+    B = Class(name='B', base_class=A, fields={}, metaclass=TYPE)
+    obj = Instance(B)
+    obj.write_attr('x', 2)
+    assert obj.cls.base_class.read_attr('f')(obj) == 3  # 与前面obj.cls.read_attr('f')(obj)相比较
+    assert obj.callmethod('f') == 3

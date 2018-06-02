@@ -54,6 +54,12 @@ class Class(Base):
     def issubclass(self, cls):
         return cls in self.method_resolution_order()
 
+    def _read_from_class(self, methname):
+        for cls in self.method_resolution_order():
+            if methname in cls._fields:
+                return cls._fields[methname]
+        return MISSING
+
 
 OBJECT = Class(name='object', base_class=None, fields={}, metaclass=None)
 TYPE = Class(name='type', base_class=OBJECT, fields={}, metaclass=None)

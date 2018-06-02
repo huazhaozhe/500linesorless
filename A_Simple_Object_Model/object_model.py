@@ -45,6 +45,15 @@ class Class(Base):
         self.name = name
         self.base_class = base_class
 
+    def method_resolution_order(self):
+        if self.base_class is None:
+            return [self]
+        else:
+            return [self] + self.base_class.method_resolution_order()
+
+    def issubclass(self, cls):
+        return cls in self.method_resolution_order()
+
 
 OBJECT = Class(name='object', base_class=None, fields={}, metaclass=None)
 TYPE = Class(name='type', base_class=OBJECT, fields={}, metaclass=None)

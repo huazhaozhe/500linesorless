@@ -66,3 +66,26 @@ def test_isinstance():
     assert b.isinstance(A)
     assert b.isinstance(OBJECT)
     assert not b.isinstance(TYPE)
+
+def test_callmethod_simple():
+
+    class A():
+        def f(self):
+            return self.x + 1
+    obj = A()
+    obj.x = 1
+    assert obj.f() == 2
+
+    class B(A):
+        pass
+    obj = B()
+    obj.x = 1
+    assert obj.f() == 2
+
+    def f_A(self):
+        return self.read_attr('x') + 1
+    A = Class(name='A', base_class=OBJECT, fields={'f': f_A}, metaclass=TYPE)
+    obj = Instance(A)
+    obj.write_attr('x', 1)
+    assert obj.read_attr('x') == 1
+    assert obj.cls.read_attr('f')(obj) == 2

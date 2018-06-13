@@ -127,4 +127,34 @@ def test_callmethod_subclassing_and_arguments():
     obj = Instance(B)
     obj.write_attr('x', 2)
     assert obj.cls.read_attr('g')(obj, 2) == 6
+    assert obj.callmethod('g', 2) == 6
 
+def test_bound_method():
+    class A:
+        def f(self, a):
+            return self.x + a
+    obj = A()
+    obj.x = 2
+    m = obj.f
+    assert m(4) == 6
+
+    class B(A):
+        pass
+    obj = B()
+    obj.x = 1
+    m = obj.f
+    assert m(10) == 11
+
+    def f_A(self, a):
+        return self.read_attr('x') + a + 1
+    A = Class(name='A', base_class=OBJECT, fields={'f': f_A}, metaclass=TYPE)
+    obj = Instance(A)
+    obj.write_attr('x', 2)
+    m = obj.read_attr('f')
+    assert m(4) == 7
+
+    B = Class(name='B', base_class=A, fields={}, metaclass=TYPE)
+    obj = Instance(B)
+    obj.write_attr('x', 1)
+    m = obj.read_attr('f')
+    assert m(10) == 12

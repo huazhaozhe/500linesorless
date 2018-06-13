@@ -5,6 +5,15 @@
 # @FileName : object_model.py
 # @Project  : PyCharm
 
+MISSING = object()
+
+def _is_bindable(meth):
+    return callable(meth)
+def _make_boundmethod(meth, self):
+    def bound(*args):
+        return meth(self, *args)
+    return bound
+
 class Base():
 
     def __init__(self, cls, fields):
@@ -12,8 +21,15 @@ class Base():
         self._fields = fields
 
     def read_attr(self, fieldname):
-        return self._read_dict(fieldname)
-
+        result = self._read_dict(fieldname)
+        if result is not MISSING:
+            return result
+        result = self.cls._read_from_class(fieldname)
+        if _is_bindable(result):
+            return _make_boundmethod(result, self)
+        if result is not MISSING:
+            return result
+        raise AttributeError(fieldname)
     def write_attr(self, fieldname, value):
         self._write_dict(fieldname, value)
 
@@ -21,8 +37,8 @@ class Base():
         return self.cls.issubclass(cls)
 
     def callmethod(self, methname, *args):
-        meth = self.cls._read_from_class(methname)
-        return meth(self, *args)
+        meth = self.read_attr(methname)
+        return meth(*args)
 
     def _read_dict(self, fieldname):
         return self._fields.get(fieldname, MISSING)
@@ -30,7 +46,6 @@ class Base():
     def _write_dict(self, fieldname, value):
         self._fields[fieldname] = value
 
-MISSING = object()
 
 class Instance(Base):
 

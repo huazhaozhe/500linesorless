@@ -96,3 +96,35 @@ def test_callmethod_simple():
     obj.write_attr('x', 2)
     assert obj.cls.base_class.read_attr('f')(obj) == 3  # 与前面obj.cls.read_attr('f')(obj)相比较
     assert obj.callmethod('f') == 3
+
+def test_callmethod_subclassing_and_arguments():
+    class A():
+        def g(self, arg):
+            return self.x + arg
+    obj = A()
+    obj.x = 1
+    assert obj.g(1) == 2
+
+    class B(A):
+        def g(self, arg):
+            return self.x + arg * 2
+    obj = B()
+    obj.x = 4
+    assert obj.g(3) == 10
+
+    def g_A(self, arg):
+        return self.read_attr('x') + arg
+    A = Class(name='A', base_class=OBJECT, fields={'g': g_A}, metaclass=TYPE)
+    obj = Instance(A)
+    obj.write_attr('x', 1)
+    assert obj.cls.read_attr('g')(obj, 4) == 5
+    assert obj.callmethod('g', 4) == 5
+
+    def g_B(self, arg):
+        return self.read_attr('x') + arg * 2
+
+    B = Class(name='B', base_class=A, fields={'g': g_B}, metaclass=TYPE)
+    obj = Instance(B)
+    obj.write_attr('x', 2)
+    assert obj.cls.read_attr('g')(obj, 2) == 6
+

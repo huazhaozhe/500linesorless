@@ -29,9 +29,14 @@ class Base():
             return _make_boundmethod(result, self)
         if result is not MISSING:
             return result
+        meth = self.cls._read_from_class('__getattr__')
+        if meth is not MISSING:
+            return meth(self, fieldname)
         raise AttributeError(fieldname)
     def write_attr(self, fieldname, value):
-        self._write_dict(fieldname, value)
+        # return self._write_dict(fieldname, value)
+        meth = self.cls._read_from_class('__setattr__')
+        return meth(self, fieldname, value)
 
     def isinstance(self, cls):
         return self.cls.issubclass(cls)
@@ -75,8 +80,11 @@ class Class(Base):
                 return cls._fields[methname]
         return MISSING
 
+def OBJECT__setattr__(self, fieldname, value):
+    self._write_dict(fieldname, value)
 
-OBJECT = Class(name='object', base_class=None, fields={}, metaclass=None)
+
+OBJECT = Class(name='object', base_class=None, fields={'__setattr__': OBJECT__setattr__}, metaclass=None)
 TYPE = Class(name='type', base_class=OBJECT, fields={}, metaclass=None)
 TYPE.cls = TYPE
 OBJECT.cls = TYPE

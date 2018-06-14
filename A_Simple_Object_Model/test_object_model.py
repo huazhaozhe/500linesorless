@@ -158,3 +158,44 @@ def test_bound_method():
     obj.write_attr('x', 1)
     m = obj.read_attr('f')
     assert m(10) == 12
+    assert obj.read_attr('f')(10) == 12
+
+def test_getattr():
+    class A:
+        def __getattr__(self, name):
+            if name == 'fahrenheit':
+                return self.celsius * 9. / 5. + 32
+            raise AttributeError(name)
+        def __setattr__(self, name, value):
+            if name == 'fahrenheit':
+                self.celsius = (value - 32) * 5. / 9.
+            else:
+                object.__setattr__(self, name, value)
+    obj = A()
+    obj.celsius = 30
+    assert obj.fahrenheit == 86
+    obj.celsius = 40
+    assert obj.fahrenheit == 104
+
+    obj.fahrenheit = 86
+    assert obj.celsius == 30
+    assert obj.fahrenheit == 86
+
+    def __getattr__(self, name):
+        if name == 'fahrenheit':
+            return self.read_attr('celsius') * 9. / 5. + 32
+        raise AttributeError(name)
+    def __setattr__(self, name, value):
+        if name == 'fahrenheit':
+            self.write_attr('celsius', (value - 32) * 5. / 9.)
+        else:
+            OBJECT.read_attr('__setattr__')(self, name, value)
+    A = Class(name='A', base_class=OBJECT, fields={'__getattr__': __getattr__, '__setattr__': __setattr__}, metaclass=TYPE)
+    obj = Instance(A)
+    obj.write_attr('celsius', 30)
+    assert obj.read_attr('fahrenheit') == 86
+    obj.write_attr('celsius', 40)
+    assert obj.read_attr('fahrenheit') == 104
+    obj.write_attr('fahrenheit', 86)
+    assert obj.read_attr('celsius') == 30
+    assert obj.read_attr('fahrenheit') == 86

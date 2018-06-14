@@ -199,3 +199,24 @@ def test_getattr():
     obj.write_attr('fahrenheit', 86)
     assert obj.read_attr('celsius') == 30
     assert obj.read_attr('fahrenheit') == 86
+
+def test_get():
+    class FahrenheitGetter():
+        def __get__(self, inst, cls):
+            return inst.celsius * 9. / 5. + 32
+
+    class A():
+        fahrenheit = FahrenheitGetter()
+
+    obj = A()
+    obj.celsius = 30
+    assert obj.fahrenheit == 86
+
+    class FahrenheitGetter():
+        def __get__(self, inst, cls):
+            return inst.read_attr('celsius') * 9. / 5. + 32
+
+    A = Class(name='A', base_class=OBJECT, fields={'fahrenheit': FahrenheitGetter()}, metaclass=TYPE)
+    obj = Instance(A)
+    obj.write_attr('celsius', 30)
+    assert obj.read_attr('fahrenheit') == 86

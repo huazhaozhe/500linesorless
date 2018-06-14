@@ -8,11 +8,19 @@
 MISSING = object()
 
 def _is_bindable(meth):
-    return callable(meth)
+    return hasattr(meth, '__get__')
 def _make_boundmethod(meth, self):
-    def bound(*args):
-        return meth(self, *args)
-    return bound
+    return meth.__get__(self, None)
+
+'''
+def __getattribute__(self, key):
+    "Emulate type_getattro() in Objects/typeobject.c"
+    v = object.__getattribute__(self, key)
+    if hasattr(v, '__get__'):
+       return v.__get__(None, self)
+    return v
+'''
+
 
 class Base():
 

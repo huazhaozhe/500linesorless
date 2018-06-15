@@ -13,6 +13,7 @@ def _make_boundmethod(meth, self):
     return meth.__get__(self, None)
 
 '''
+参考Python的__getattribute__的部分实现:
 def __getattribute__(self, key):
     "Emulate type_getattro() in Objects/typeobject.c"
     v = object.__getattribute__(self, key)
@@ -42,7 +43,6 @@ class Base():
             return meth(self, fieldname)
         raise AttributeError(fieldname)
     def write_attr(self, fieldname, value):
-        # return self._write_dict(fieldname, value)
         meth = self.cls._read_from_class('__setattr__')
         return meth(self, fieldname, value)
 
@@ -60,11 +60,49 @@ class Base():
         self._fields[fieldname] = value
 
 
+class Map():
+    def __init__(self, attrs):
+        self.attrs = attrs
+        self.next_maps = {}
+
+    def get_index(self, fieldname):
+        return self.attrs.get(fieldname, -1)
+
+    def next_map(self, fieldname):
+        assert fieldname not in self.attrs
+        if fieldname in self.next_maps:
+            return self.next_maps[fieldname]
+        attrs = self.attrs.copy()
+        attrs[fieldname] = len(attrs)
+        result = self.next_maps[fieldname] = Map(attrs)
+        return result
+
+EMPTY_MAP = Map({})
+
+
 class Instance(Base):
 
     def __init__(self, cls):
         assert isinstance(cls, Class)
         Base.__init__(self, cls, {})
+        self.map = EMPTY_MAP
+        self.storage = []
+
+    def _read_dict(self, fieldname):
+        index = self.map.get_index(fieldname)
+        if index == -1:
+            return MISSING
+        return self.storage[index]
+
+    def _write_dict(self, fieldname, value):
+        index = self.map.get_index(fieldname)
+        if index != -1:
+            self.storage[index] = value
+        else:
+            new_map = self.map.next_map(fieldname)
+            self.storage.append(value)
+            self.map = new_map
+
 
 class Class(Base):
 

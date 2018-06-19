@@ -24,6 +24,9 @@ class Future():
         self.result = None
         self._callbacks = []
 
+    def result(self):
+        return self.result
+
     def add_done_callback(self, fn):
         self._callbacks.append(fn)
 
@@ -31,6 +34,9 @@ class Future():
         self.result = result
         for fn in self._callbacks:
             fn(self)
+    def __iter__(self):
+        yield self
+        return self.result
 
 class Task():
     def __init__(self, coro):
@@ -47,6 +53,37 @@ class Task():
         next_future.add_done_callback(self.step)
 
 
+def connect(sock, address):
+    f = Future()
+    sock.setblocking(False)
+    try:
+        sock.connect(address)
+    except BlockingIOError:
+        pass
+    def on_connected():
+        f.set_result(None)
+    selector.register(sock.fileno(), EVENT_WRITE, on_connected)
+    yield from f
+    selector.unregister(sock.fileno())
+
+def read(sock):
+    f = Future()
+    def on_readable():
+        f.set_result(sock.recv(4096))
+    selector.register(sock.fileno(), EVENT_READ, on_readable)
+    chunk = yield f
+    selector.unregister(sock.fileno())
+    return chunk
+
+def read_all(sock):
+    response = []
+    chunk = yield from read(sock)
+    while chunk:
+        response.append(chunk)
+        chunk = yield from read(sock)
+    return b''.join(response)
+
+
 class Fetchar():
     def __init__(self, host, url, port=80):
         self.response = b''
@@ -57,25 +94,19 @@ class Fetchar():
 
 
     def fetch(self):
-        self.sock = socket.socket()
-        self.sock.setblocking(False)
-        try:
-            self.sock.connect((self.host, self.port))
-        except BlockingIOError:
-            pass
-        f = Future()
-        # 合并connected
-        def on_connected(key, mask):
-            f.set_result(key)
-        selector.register(
-            self.sock.fileno(),
-            EVENT_WRITE,
-            on_connected
-        )
-        key = yield f
-        self.connected(key, None)
-        # selector.unregister(self.sock.fileno())
-        # print('connected!')
+        global concurrency_achieved, stopped
+        concurrency_achieved = max(concurrency_achieved, len(urls_todo))
+        sock = socket.socket()
+        yield from connect(sock, (self.host, self.port))
+        get = 'GET {0} HTTP/1.0\t\nHost: {1}\r\n\r\n'.format(self.url, self.host)
+        sock.send(get.encode())
+        self.response = yield from read_all(sock)
+        self.parse_links()
+        urls_todo.remove(self.url)
+        if not urls_todo:
+            stopped = True
+        print(self.url)
+
 
     def connected(self, key, mask):
         print('url {} connected!'.format(self.url))
@@ -111,12 +142,12 @@ class Fetchar():
     def parse_links(self):
         if not self.response:
             print('url error: {}'.format(self.url))
-            return set()
+            return
         if not self._is_html():
             print('url {} not html'.format(self.url))
-            return set()
+            return
         urls = set(re.findall(r'''(?i)href=["']?([^\s"'<>]+)''', self.body()))
-        links = set()
+        # links = set()
         for url in urls:
             normalized = urllib.parse.urljoin(self.url, url)
             parts = urllib.parse.urlparse(normalized)
@@ -126,8 +157,12 @@ class Fetchar():
             if host and host.lower() not in (self.host, 'www.'+self.host):
                 continue
             defragmented, frag = urllib.parse.urldefrag(parts.path)
-            links.add(defragmented)
-        return links
+            # links.add(defragmented)
+        # return links
+            if defragmented not in seen_urls:
+                urls_todo.add(defragmented)
+                seen_urls.add(defragmented)
+                Task(Fetchar(self.host, defragmented, self.port).fetch())
 
     def _is_html(self):
         head, body = self.response.split(b'\r\n\r\n', 1)
@@ -149,7 +184,7 @@ while not stopped:
     events = selector.select()
     for event_key, event_mask in events:
         callback = event_key.data
-        callback(event_key, event_mask)
+        callback()
 
 print('{} URLs fetched in {:.1f} seconds, achieved concurrency = {}'.format(
     len(seen_urls),
